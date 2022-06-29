@@ -96,6 +96,7 @@ exports.postRegisterController = (req, res) => {
                 user
                   .save()
                   .then((result) => {
+                    console.log("remove this later");
                     const host = req.get("host");
                     const link = `http://${host}/verify?token=${verifyToken}`;
                     const mailOptions = {
