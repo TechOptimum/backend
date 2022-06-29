@@ -14,6 +14,14 @@ const UserSchema = new Schema({
     password: {
         type: String,
         required: true,
+    },
+    active: {
+        type: Boolean,
+        default: false,
+    },
+    token: {
+        type: String,
+        required: false,
     }
 });
 

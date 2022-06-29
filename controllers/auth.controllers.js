@@ -1,8 +1,18 @@
+const nodeMailer = require("nodemailer");
+
 const User = require("../models/user.model");
 
 const generateToken = require("../utils/authMethods.utils").generateAccessToken;
 const hashPassword = require("../utils/authMethods.utils").hashPassword;
 const checkPassword = require("../utils/authMethods.utils").checkPassword;
+
+const transporter = nodeMailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.GMAIL_USER,
+    pass: process.env.GMAIL_PASS,
+  },
+});
 
 exports.postLoginController = (req, res) => {
   const email = req.body.email;
@@ -59,6 +69,7 @@ exports.postRegisterController = (req, res) => {
   const email = req.body.email;
   const password = req.body.password;
   const confirmPassword = req.body.confirmPassword;
+  const verifyToken = require("crypto").randomBytes(64).toString("hex");
 
   if (password === confirmPassword) {
     hashPassword(password).then((hashedPass) => {
@@ -79,10 +90,27 @@ exports.postRegisterController = (req, res) => {
                   username,
                   email,
                   password: hashedPass,
+                  active: false,
+                  token: verifyToken,
                 });
                 user
                   .save()
                   .then((result) => {
+                    const host = req.get("host");
+                    const link = `http://${host}/verify?token=${verifyToken}`;
+                    const mailOptions = {
+                      from: "noreply@techoptimum.org",
+                      to: email,
+                      subject: "Verify your email",
+                      html: `<h1>Verify your email</h1><br><a href="${link}">Click here to verify your email</a>`,
+                    };
+                    transporter.sendMail(mailOptions, (err, info) => {
+                      if (err) {
+                        console.log(err);
+                      } else {
+                        console.log(info);
+                      }
+                    });
                     return res
                       .cookie("token", token, {
                         maxAge: 1000 * 60 * 60,
@@ -133,4 +161,45 @@ exports.postRegisterController = (req, res) => {
 
 exports.postLogoutController = (req, res) => {
   res.clearCookie("token").status(200).json({ success: true });
+};
+
+exports.getVerifyController = (req, res) => {
+  const token = req.query.token;
+  User.findOne({
+    token: token,
+  })
+    .then((users) => {
+      if (users.active === false) {
+        users.active = true;
+        users
+          .save()
+          .then((result) => {
+            return res.status(200).json({
+              success: true,
+              msg: "Email verified.",
+            });
+          })
+          .catch((err) => {
+            console.log(err);
+            return res.status(505).json({
+              success: false,
+              errType: "dberr",
+              msg: "Internal Server Error.",
+            });
+          });
+      } else {
+        return res.status(200).json({
+          success: true,
+          msg: "Email already verified.",
+        });
+      }
+    })
+    .catch((err) => {
+      console.log(err);
+      return res.status(505).json({
+        success: false,
+        errType: "dberr",
+        msg: "Internal Server Error.",
+      });
+    });
 };
