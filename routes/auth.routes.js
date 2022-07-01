@@ -12,4 +12,8 @@ router.post('/logout', authControllers.postLogoutController);
 
 router.get('/verify', authControllers.getVerifyController);
 
+router.post('/reset-password-request', authControllers.postFPassReq);
+
+router.post('/reset-password', authControllers.postResetPassword);
+
 module.exports = router;

@@ -1,4 +1,4 @@
-const nodeMailer = require("nodemailer");
+const sgMail = require("@sendgrid/mail");
 
 const User = require("../models/user.model");
 
@@ -6,14 +6,7 @@ const generateToken = require("../utils/authMethods.utils").generateAccessToken;
 const hashPassword = require("../utils/authMethods.utils").hashPassword;
 const checkPassword = require("../utils/authMethods.utils").checkPassword;
 
-const transporter = nodeMailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.GMAIL_USER,
-    pass: process.env.GMAIL_PASS,
-  },
-});
-
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 exports.postLoginController = (req, res) => {
   const email = req.body.email;
   const password = req.body.password;
@@ -34,7 +27,11 @@ exports.postLoginController = (req, res) => {
                     signed: true,
                   })
                   .status(200)
-                  .json({ success: true, username: users.username });
+                  .json({
+                    success: true,
+                    username: users.username,
+                    active: users.active,
+                  });
               })
               .catch((err) => {
                 console.log(err);
@@ -96,21 +93,21 @@ exports.postRegisterController = (req, res) => {
                 user
                   .save()
                   .then((result) => {
-                    const host = req.get("host");
-                    const link = `http://${host}/verify?token=${verifyToken}`;
-                    const mailOptions = {
-                      from: "noreply@techoptimum.org",
+                    const link = `http://localhost:3001/verify/${verifyToken}`;
+                    const msg = {
                       to: email,
-                      subject: "Verify your email",
-                      html: `<h1>Verify your email</h1><br><a href="${link}">Click here to verify your email</a>`,
+                      from: process.env.FROM_EMAIL,
+                      subject: "Verify your Tech Optimum Account",
+                      html: `<h1>Verify your Tech Optimum Account.</h1><br><a href="${link}">Click here to verify your email.</a><br><br><h3>Sincerely, Tech Optimum</h3>`,
                     };
-                    transporter.sendMail(mailOptions, (err, info) => {
-                      if (err) {
+                    sgMail
+                      .send(msg)
+                      .then((result) => {
+                        console.log("Email sent.");
+                      })
+                      .catch((err) => {
                         console.log(err);
-                      } else {
-                        console.log(info);
-                      }
-                    });
+                      });
                     return res
                       .cookie("token", token, {
                         maxAge: 1000 * 60 * 60,
@@ -121,6 +118,7 @@ exports.postRegisterController = (req, res) => {
                       .json({
                         success: true,
                         username,
+                        active: false,
                       });
                   })
                   .catch((err) => {
@@ -169,8 +167,16 @@ exports.getVerifyController = (req, res) => {
     token: token,
   })
     .then((users) => {
+      if (users.length < 1) {
+        return res.json({
+          success: false,
+          msg: "Token not recognized.",
+          errType: "tknnr",
+        });
+      }
       if (users.active === false) {
         users.active = true;
+        users.token = null;
         users
           .save()
           .then((result) => {
@@ -191,6 +197,7 @@ exports.getVerifyController = (req, res) => {
         return res.status(200).json({
           success: true,
           msg: "Email already verified.",
+          code: "emav",
         });
       }
     })
@@ -202,4 +209,82 @@ exports.getVerifyController = (req, res) => {
         msg: "Internal Server Error.",
       });
     });
+};
+
+exports.postFPassReq = (req, res) => {
+  const email = req.body.email;
+  const verifyToken = require("crypto").randomBytes(64).toString("hex");
+  User.findOne({ email }).then((users) => {
+    if (!users) {
+      return res.json({
+        success: false,
+        code: "emalnex",
+      });
+    } else {
+      users.token = verifyToken;
+      users.save().then((result) => {
+        const link = `http://localhost:3001/verify/reset-password/${verifyToken}`;
+        const msg = {
+          to: email,
+          from: process.env.FROM_EMAIL,
+          subject: "Password Reset Requested.",
+          html: `<h1>You requested a password reset.</h1><br><a href="${link}">Click here to continue.</a><br><br><h3>Sincerely, Tech Optimum</h3>`,
+        };
+        sgMail
+          .send(msg)
+          .then((result) => {
+            console.log("Email sent.");
+          })
+          .catch((err) => {
+            console.log(err);
+          });
+        return;
+      }).then(() => {
+        res.json({
+          success: true,
+        });
+      })
+    }
+  });
+};
+
+exports.postResetPassword = (req, res) => {
+  const token = req.query.token;
+  const password = req.body.password;
+  User.findOne({
+    token,
+  }).then((user) => {
+    if (!user) {
+      return res.json({
+        success: false,
+        code: "nuf",
+      });
+    } else {
+      if (user.token.toString() === token.toString()) {
+        hashPassword(password)
+          .then((hashedPassword) => {
+            user.password = hashedPassword;
+            user.token = null;
+            return user.save();
+          })
+          .then((result) => {
+            const msg = {
+              to: user.email,
+              from: process.env.FROM_EMAIL,
+              subject: "Password Reset Successful.",
+              html: `<h1>Your password was reset successfully.</h1><br><br><h3>Sincerely, Tech Optimum</h3>`,
+            };
+            sgMail
+              .send(msg)
+              .then((result) => {
+                console.log("Email sent.");
+              })
+              .catch((err) => {
+                console.log(err);
+              });
+            return res.json({ success: true, msg: "Password changed." });
+          });
+      }
+    }
+  });
 };
