@@ -1,5 +1,5 @@
 const express = require("express");
-const { body } = require("express-validator/check");
+const { body } = require("express-validator");
 
 const router = express.Router();
 
@@ -21,7 +21,7 @@ router.post(
       .contains("[@$!%*#?&]")
       .withMessage("Password must contain a special character"),
     body("confirmPassword")
-      .matches(req.body.password)
+      .matches("password")
       .withMessage("Passwords must match"),
   ],
   authControllers.postRegisterController

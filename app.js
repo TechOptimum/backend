@@ -6,22 +6,23 @@ const cors = require("cors");
 
 const app = express();
 
-const authRoutes = require('./routes/auth.routes');
+const authRoutes = require("./routes/auth.routes");
+const courseRoutes = require("./routes/course.routes");
 
 require("dotenv").config();
 
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
-app.use(cookieParser(process.env.COOKIE_SECRET));
 app.use(
   cors({
-    origin: ["http://localhost:3001"],
     credentials: true,
     allowedHeaders: ["Content-Type", "Authorization"],
+    origin: ["http://localhost:3001"],
   })
 );
 
-app.use('/auth', authRoutes);
+app.use("/auth", authRoutes);
+app.use("/course", courseRoutes);
 
 mongoose
   .connect("mongodb://localhost:27017/techoptimumdasboard")

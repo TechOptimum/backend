@@ -10,55 +10,53 @@ sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 exports.postLoginController = (req, res) => {
   const email = req.body.email;
   const password = req.body.password;
-  const paramsExist = Object.keys(req.query).length > 0;
-  if (!paramsExist) {
-    User.findOne({
-      email,
-    })
-      .then((users) => {
-        checkPassword(users.password, password).then((result) => {
-          if (result) {
-            generateToken(email)
-              .then((token) => {
-                return res
-                  .cookie("token", token, {
-                    maxAge: 1000 * 60 * 60,
-                    httpOnly: true,
-                    signed: true,
-                  })
-                  .status(200)
-                  .json({
-                    success: true,
-                    username: users.username,
-                    active: users.active,
-                  });
-              })
-              .catch((err) => {
-                console.log(err);
-                return res.status(505).json({
-                  success: false,
-                  errType: "tkngenerr",
-                  msg: "Internal Server Error.",
-                });
-              });
-          } else {
-            return res.status(422).json({
-              success: false,
-              msg: "Invalid email or password.",
-              errType: "lgnfail",
-            });
-          }
-        });
-      })
-      .catch((err) => {
-        res.status(505).json({
+  User.findOne({
+    email,
+  })
+    .then((users) => {
+      if (!users) {
+        return res.status(422).json({
           success: false,
-          msg: "Internal Server Error.",
-          errType: "dberr",
+          msg: "Email not recognized.",
+          errType: "emnnr",
         });
-        console.log(err);
+      }
+      checkPassword(users.password, password).then((result) => {
+        if (result) {
+          generateToken(email)
+            .then((token) => {
+              return res.status(200).json({
+                token: token,
+                success: true,
+                username: users.username,
+                active: users.active,
+              });
+            })
+            .catch((err) => {
+              console.log(err);
+              return res.status(505).json({
+                success: false,
+                errType: "tkngenerr",
+                msg: "Internal Server Error.",
+              });
+            });
+        } else {
+          return res.status(422).json({
+            success: false,
+            msg: "Invalid email or password.",
+            errType: "lgnfail",
+          });
+        }
       });
-  }
+    })
+    .catch((err) => {
+      res.status(505).json({
+        success: false,
+        msg: "Internal Server Error.",
+        errType: "dberr",
+      });
+      console.log(err);
+    });
 };
 
 exports.postRegisterController = (req, res) => {
@@ -108,18 +106,12 @@ exports.postRegisterController = (req, res) => {
                       .catch((err) => {
                         console.log(err);
                       });
-                    return res
-                      .cookie("token", token, {
-                        maxAge: 1000 * 60 * 60,
-                        signed: true,
-                        httpOnly: true,
-                      })
-                      .status(200)
-                      .json({
-                        success: true,
-                        username,
-                        active: false,
-                      });
+                    return res.status(200).json({
+                      token: token,
+                      success: true,
+                      username,
+                      active: false,
+                    });
                   })
                   .catch((err) => {
                     res.status(505).json({
@@ -158,7 +150,7 @@ exports.postRegisterController = (req, res) => {
 };
 
 exports.postLogoutController = (req, res) => {
-  res.clearCookie("token").status(200).json({ success: true });
+  res.status(200).json({ success: true });
 };
 
 exports.getVerifyController = (req, res) => {
@@ -222,28 +214,31 @@ exports.postFPassReq = (req, res) => {
       });
     } else {
       users.token = verifyToken;
-      users.save().then((result) => {
-        const link = `http://localhost:3001/verify/reset-password/${verifyToken}`;
-        const msg = {
-          to: email,
-          from: process.env.FROM_EMAIL,
-          subject: "Password Reset Requested.",
-          html: `<h1>You requested a password reset.</h1><br><a href="${link}">Click here to continue.</a><br><br><h3>Sincerely, Tech Optimum</h3>`,
-        };
-        sgMail
-          .send(msg)
-          .then((result) => {
-            console.log("Email sent.");
-          })
-          .catch((err) => {
-            console.log(err);
+      users
+        .save()
+        .then((result) => {
+          const link = `http://localhost:3001/verify/reset-password/${verifyToken}`;
+          const msg = {
+            to: email,
+            from: process.env.FROM_EMAIL,
+            subject: "Password Reset Requested.",
+            html: `<h1>You requested a password reset.</h1><br><a href="${link}">Click here to continue.</a><br><br><h3>Sincerely, Tech Optimum</h3>`,
+          };
+          sgMail
+            .send(msg)
+            .then((result) => {
+              console.log("Email sent.");
+            })
+            .catch((err) => {
+              console.log(err);
+            });
+          return;
+        })
+        .then(() => {
+          res.json({
+            success: true,
           });
-        return;
-      }).then(() => {
-        res.json({
-          success: true,
         });
-      })
     }
   });
 };
