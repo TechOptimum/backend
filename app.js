@@ -3,7 +3,7 @@ const mongoose = require("mongoose");
 const bodyParser = require("body-parser");
 const cookieParser = require("cookie-parser");
 const cors = require("cors");
-
+var expressValidator = require('express-validator');
 const app = express();
 
 const authRoutes = require("./routes/auth.routes");
@@ -25,7 +25,7 @@ app.use("/auth", authRoutes);
 app.use("/course", courseRoutes);
 
 mongoose
-  .connect("mongodb://localhost:27017/techoptimumdasboard")
+.connect("mongodb+srv://warden:uUSN9mQ4u9ZfTT0i@dashboardcluster.hp6kx.mongodb.net/?retryWrites=true&w=majority")
   .then((result) => {
     app.listen(3000, () => {
       console.log("Connected!");
