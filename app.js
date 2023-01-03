@@ -3,7 +3,7 @@ const mongoose = require("mongoose");
 const bodyParser = require("body-parser");
 const cookieParser = require("cookie-parser");
 const cors = require("cors");
-
+var expressValidator = require('express-validator');
 const app = express();
 
 const authRoutes = require("./routes/auth.routes");
