@@ -8,6 +8,7 @@ const app = express();
 
 const authRoutes = require("./routes/auth.routes");
 const courseRoutes = require("./routes/course.routes");
+const notionRoutes = require("./routes/notion.routes");
 
 require("dotenv").config();
 
@@ -17,20 +18,23 @@ app.use(
   cors({
     credentials: true,
     allowedHeaders: ["Content-Type", "Authorization"],
-    origin: ["http://localhost:3001"],
+    origin: ["http://localhost:3000"],
   })
 );
 
 app.use("/auth", authRoutes);
 app.use("/course", courseRoutes);
+app.use("/notion", notionRoutes);
 
-mongoose
-  .connect("mongodb://localhost:27017/techoptimumdasboard")
-  .then((result) => {
-    app.listen(3000, () => {
-      console.log("Connected!");
-    });
-  })
-  .catch((err) => {
-    console.log(err);
-  });
+// mongoose
+//   .connect("mongodb://localhost:27017/techoptimumdasboard")
+//   .then((result) => {
+    
+//   })
+//   .catch((err) => {
+//     console.log(err);
+//   });
+
+app.listen(3001, () => {
+  console.log("Connected!");
+});
