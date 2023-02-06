@@ -10,7 +10,7 @@
     "express": "^4.18.1",
     "express-validator": "^6.14.2",
     "jsonwebtoken": "^8.5.1",
-    "mongoose": "^6.8.0",
+    "mongoose": "^6.9.1",
     "node-mailer": "^0.1.1"
   },
   "scripts": {
